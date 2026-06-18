@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCA — An Interactive Introduction</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --border: #2a2d3a;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --blue: #3b82f6;
+  --green: #10b981;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+a { color: var(--blue); }
+
+/* ── Hero ── */
+.hero {
+  background: linear-gradient(135deg, #1e2538 0%, #0f1117 60%);
+  border-bottom: 1px solid var(--border);
+  padding: 64px 24px 48px;
+  text-align: center;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #93c5fd, #6ee7b7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+}
+.hero p {
+  max-width: 640px;
+  margin: 0 auto;
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+/* ── Sections ── */
+section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 56px 24px;
+  border-bottom: 1px solid var(--border);
+}
+section:last-of-type { border-bottom: none; }
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 6px;
+}
+section > h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+section > .lead {
+  color: #94a3b8;
+  margin-bottom: 32px;
+  max-width: 680px;
+}
+
+/* ── Cards / panels ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+/* ── 2D Lab layout ── */
+.lab-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .lab-grid { grid-template-columns: 1fr; }
+}
+
+#scatter-wrap svg { width: 100%; height: auto; display: block; }
+
+/* ── Controls panel ── */
+.controls-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.slider-group { display: flex; flex-direction: column; gap: 4px; }
+.slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+}
+.slider-row label { color: var(--text); }
+.slider-row output { color: var(--amber); font-variant-numeric: tabular-nums; font-size: 0.82rem; }
+input[type=range] {
+  width: 100%;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.variance-caption {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 8px;
+  text-align: center;
+  min-height: 1.2em;
+}
+
+/* ── Walkthrough controls ── */
+.wt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.wt-text {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  min-height: 56px;
+  margin-top: 12px;
+}
+.step-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.step-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s;
+}
+.step-dot.active { background: var(--blue); }
+.step-dot.done   { background: var(--green); }
+
+/* ── Buttons ── */
+btn, .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.btn:hover { background: #252836; border-color: #3a3d52; }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn.primary:hover { background: #2563eb; }
+.btn:disabled { opacity: 0.4; pointer-events: none; }
+
+/* ── 3D scene ── */
+#scene-3d {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #0a0c13;
+}
+#three-canvas { display: block; width: 100% !important; }
+.scene-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.scene-hint {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ── Scree plot ── */
+#scree-container svg text { font-size: 10px; fill: var(--muted); }
+#scree-3d-container { margin-top: 16px; }
+
+/* ── Math reference ── */
+details summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--blue);
+  font-weight: 600;
+  padding: 8px 0;
+  font-size: 0.9rem;
+  list-style: none;
+}
+details summary::before { content: "▶ "; font-size: 0.7em; }
+details[open] summary::before { content: "▼ "; }
+.math-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+@media (max-width: 600px) { .math-grid { grid-template-columns: 1fr; } }
+.math-block {
+  background: #0d0f18;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: "SFMono-Regular", "Consolas", monospace;
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  white-space: pre;
+  overflow-x: auto;
+}
+.math-block b { color: #c4b5fd; }
+
+/* ── SVG helpers (applied via JS) ── */
+.pc1-line { stroke: var(--blue); stroke-width: 2.5; }
+.pc2-line { stroke: var(--green); stroke-width: 2; stroke-dasharray: 5,3; }
+.cov-ellipse { fill: none; stroke: var(--amber); stroke-width: 1.5; stroke-dasharray: 5,3; opacity: 0.65; }
+.proj-line { stroke: #475569; stroke-width: 1; stroke-dasharray: 3,3; opacity: 0.7; }
+.shadow-pt { fill: var(--blue); opacity: 0.8; }
+.mean-cross { stroke: var(--amber); stroke-width: 1.5; opacity: 0.9; }
+
+/* ── Footer ── */
+footer {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Principal Component Analysis</h1>
+  <p>An interactive introduction — drag data points, step through the algorithm, and explore the geometry of variance in 2D and 3D.</p>
+</header>
+
+<!-- ─── Section 1: 2D Lab ─── -->
+<section id="sec-lab">
+  <div class="section-label">Section 1</div>
+  <h2>The 2D Interactive Lab</h2>
+  <p class="lead">PCA finds the directions in which your data varies the most. Drag points or adjust the sliders to see how the principal components (arrows) respond in real time.</p>
+
+  <div class="lab-grid">
+    <div>
+      <div id="scatter-wrap" class="card" style="padding:0; overflow:hidden;"></div>
+      <p class="variance-caption" id="var-caption">–</p>
+    </div>
+
+    <div class="controls-panel">
+      <div class="card">
+        <div class="slider-group">
+          <div class="slider-row"><label for="sl-n">Points</label><output id="out-n">80</output></div>
+          <input type="range" id="sl-n" min="10" max="300" step="10" value="80">
+        </div>
+        <div class="slider-group" style="margin-top:14px;">
+          <div class="slider-row"><label for="sl-rho">Correlation ρ</label><output id="out-rho">0.70</output></div>
+          <input type="range" id="sl-rho" min="-0.95" max="0.95" step="0.05" value="0.70">
+        </div>
+        <div class="slider-group" style="margin-top:14px;">
+          <div class="slider-row"><label for="sl-noise">Noise</label><output id="out-noise">0.20</output></div>
+          <input type="range" id="sl-noise" min="0" max="1" step="0.05" value="0.20">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-label" style="margin-bottom:8px;">Explained Variance</div>
+        <div id="scree-container"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label" style="margin-bottom:8px;">Legend</div>
+        <div style="font-size:0.8rem; line-height:2;">
+          <svg width="14" height="14" style="vertical-align:middle;"><line x1="0" y1="7" x2="14" y2="7" stroke="#3b82f6" stroke-width="2.5"/></svg> PC1 (max variance)<br>
+          <svg width="14" height="14" style="vertical-align:middle;"><line x1="0" y1="7" x2="14" y2="7" stroke="#10b981" stroke-width="2" stroke-dasharray="4,2"/></svg> PC2 (orthogonal)<br>
+          <svg width="14" height="14" style="vertical-align:middle;"><ellipse cx="7" cy="7" rx="6" ry="4" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/></svg> 2σ covariance ellipse
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 2: Walkthrough ─── -->
+<section id="sec-walkthrough">
+  <div class="section-label">Section 2</div>
+  <h2>Walk Me Through It</h2>
+  <p class="lead">See each step of the PCA algorithm animated on the same dataset from Section 1.</p>
+
+  <div id="wt-scatter-wrap" class="card" style="padding:0; overflow:hidden; max-width:580px;"></div>
+
+  <div class="wt-bar" style="margin-top:16px;">
+    <button class="btn" id="btn-wt-start">▶ Start walkthrough</button>
+    <div style="display:flex; align-items:center; gap:10px; display:none;" id="wt-nav">
+      <button class="btn" id="btn-prev" disabled>← Prev</button>
+      <div class="step-dots" id="step-dots"></div>
+      <button class="btn primary" id="btn-next">Next →</button>
+      <button class="btn" id="btn-exit-wt">✕ Exit</button>
+    </div>
+  </div>
+  <div class="wt-text" id="wt-text" style="display:none;"></div>
+</section>
+
+<!-- ─── Section 3: 3D Scene ─── -->
+<section id="sec-3d">
+  <div class="section-label">Section 3</div>
+  <h2>From 3D to 2D</h2>
+  <p class="lead">Real data often lives in high dimensions. Here 150 points float in 3D space with a hidden 2D structure. Rotate the cloud, then reveal the best-fit plane PCA finds.</p>
+
+  <div id="scene-3d">
+    <canvas id="three-canvas"></canvas>
+    <span class="scene-hint">drag to rotate · scroll to zoom</span>
+    <div class="scene-overlay">
+      <button class="btn primary" id="btn-reveal-plane">Reveal PCA plane</button>
+      <button class="btn" id="btn-flatten" disabled>Flatten to 2D view</button>
+    </div>
+  </div>
+
+  <div id="scree-3d-container" class="card" style="max-width:340px; margin-top:16px;">
+    <div class="section-label" style="margin-bottom:8px;">Explained Variance (3D)</div>
+    <div id="scree-3d"></div>
+  </div>
+</section>
+
+<!-- ─── Section 4: Math Reference ─── -->
+<section id="sec-math">
+  <div class="section-label">Section 4</div>
+  <h2>The Math Behind It</h2>
+  <p class="lead">The numbers below are live — they reflect the current state of the 2D lab above.</p>
+
+  <details>
+    <summary>Show math reference</summary>
+    <div class="math-grid">
+      <div>
+        <div class="section-label" style="margin-bottom:6px;">Covariance Matrix</div>
+        <div class="math-block" id="math-cov">–</div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:6px;">Eigenvalues &amp; Eigenvectors</div>
+        <div class="math-block" id="math-eig">–</div>
+      </div>
+    </div>
+  </details>
+</section>
+
+<footer>
+  Built with <a href="https://d3js.org">D3.js v7</a> &amp; <a href="https://threejs.org">Three.js r155</a> &nbsp;·&nbsp; <a href="https://github.com/dvkuo/pca-intro">GitHub</a>
+</footer>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.145.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.145.0/examples/js/controls/OrbitControls.js"></script>
+<script src="pca.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 1 — Interactive 2D scatter
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const W = 560, H = 460;
+  const M = { top: 24, right: 24, bottom: 44, left: 44 };
+
+  const svg = d3.select("#scatter-wrap").append("svg")
+    .attr("viewBox", `0 0 ${W} ${H}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  const xSc = d3.scaleLinear().domain([-4.5, 4.5]).range([M.left, W - M.right]);
+  const ySc = d3.scaleLinear().domain([-4.5, 4.5]).range([H - M.bottom, M.top]);
+
+  // Axes
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${H-M.bottom})`)
+    .call(d3.axisBottom(xSc).ticks(7).tickSize(-H+M.top+M.bottom))
+    .call(g => g.select(".domain").attr("stroke","#2a2d3a"))
+    .call(g => g.selectAll(".tick line").attr("stroke","#1e2130").attr("stroke-dasharray","3,3"))
+    .call(g => g.selectAll(".tick text").attr("fill","#475569").attr("font-size","11"));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${M.left},0)`)
+    .call(d3.axisLeft(ySc).ticks(7).tickSize(-W+M.left+M.right))
+    .call(g => g.select(".domain").attr("stroke","#2a2d3a"))
+    .call(g => g.selectAll(".tick line").attr("stroke","#1e2130").attr("stroke-dasharray","3,3"))
+    .call(g => g.selectAll(".tick text").attr("fill","#475569").attr("font-size","11"));
+
+  // Layer groups
+  const ellipseG = svg.append("g").attr("class","ellipse-layer");
+  const pcAxisG  = svg.append("g").attr("class","pcaxis-layer");
+  const pointsG  = svg.append("g").attr("class","points-layer");
+
+  // Arrow marker defs
+  const defs = svg.append("defs");
+  function makeArrow(id, color) {
+    defs.append("marker").attr("id", id)
+      .attr("markerWidth", 6).attr("markerHeight", 6)
+      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", color);
+  }
+  makeArrow("arrow-blue",  "#3b82f6");
+  makeArrow("arrow-green", "#10b981");
+
+  // Ellipse element
+  ellipseG.append("ellipse").attr("class","cov-ellipse");
+  // PC lines
+  pcAxisG.append("line").attr("class","pc1-line").attr("marker-end","url(#arrow-blue)");
+  pcAxisG.append("line").attr("class","pc2-line").attr("marker-end","url(#arrow-green)");
+  pcAxisG.append("text").attr("class","pc1-label").attr("fill","#93c5fd").attr("font-size","11").attr("text-anchor","middle");
+  pcAxisG.append("text").attr("class","pc2-label").attr("fill","#6ee7b7").attr("font-size","11").attr("text-anchor","middle");
+
+  let points = [];
+  let pcaResult = null;
+
+  // Drag
+  const drag = d3.drag()
+    .on("start", function(event, d) {
+      d3.select(this).raise().attr("r", 7).attr("fill","#f59e0b");
+    })
+    .on("drag", function(event, d) {
+      d.x = Math.max(-4.4, Math.min(4.4, xSc.invert(event.x)));
+      d.y = Math.max(-4.4, Math.min(4.4, ySc.invert(event.y)));
+      d3.select(this).attr("cx", xSc(d.x)).attr("cy", ySc(d.y));
+      updateOverlay();
+    })
+    .on("end", function(event, d) {
+      d3.select(this).attr("r", 5).attr("fill","#7c8ff0");
+    });
+
+  function updateCircles() {
+    const circles = pointsG.selectAll("circle.pt")
+      .data(points, d => d.id);
+    circles.enter().append("circle").attr("class","pt")
+      .attr("r", 5).attr("fill","#7c8ff0").attr("opacity", 0.75)
+      .attr("cursor","grab").call(drag)
+      .merge(circles)
+      .transition().duration(280)
+      .attr("cx", d => xSc(d.x)).attr("cy", d => ySc(d.y));
+    circles.exit().remove();
+  }
+
+  function updateOverlay() {
+    pcaResult = PCA.compute2D(points);
+    if (!pcaResult) return;
+    const { mean, eigvals, eigvecs, varExplained } = pcaResult;
+
+    // Ellipse
+    const angle = Math.atan2(eigvecs[0][1], eigvecs[0][0]) * 180 / Math.PI;
+    const rx = Math.abs(xSc(Math.sqrt(eigvals[0]) * 2) - xSc(0));
+    const ry = Math.abs(ySc(0) - ySc(Math.sqrt(eigvals[1]) * 2));
+    ellipseG.select(".cov-ellipse")
+      .attr("cx", xSc(mean[0])).attr("cy", ySc(mean[1]))
+      .attr("rx", rx).attr("ry", ry)
+      .attr("transform", `rotate(${-angle},${xSc(mean[0])},${ySc(mean[1])})`);
+
+    // PC axes
+    function axisLine(sel, vec, scale, cls) {
+      const len = scale;
+      const x1 = xSc(mean[0] - vec[0] * len), y1 = ySc(mean[1] - vec[1] * len);
+      const x2 = xSc(mean[0] + vec[0] * len), y2 = ySc(mean[1] + vec[1] * len);
+      pcAxisG.select(cls).attr("x1",x1).attr("y1",y1).attr("x2",x2).attr("y2",y2);
+    }
+    axisLine(null, eigvecs[0], 2.8, ".pc1-line");
+    axisLine(null, eigvecs[1], 2.2, ".pc2-line");
+
+    const pct1 = Math.round(varExplained[0] * 100);
+    const pct2 = Math.round(varExplained[1] * 100);
+
+    // PC1 label
+    const lx1 = xSc(mean[0] + eigvecs[0][0] * 3.1);
+    const ly1 = ySc(mean[1] + eigvecs[0][1] * 3.1);
+    pcAxisG.select(".pc1-label").attr("x", lx1).attr("y", ly1).text(`PC1 ${pct1}%`);
+
+    // PC2 label
+    const lx2 = xSc(mean[0] + eigvecs[1][0] * 2.5);
+    const ly2 = ySc(mean[1] + eigvecs[1][1] * 2.5);
+    pcAxisG.select(".pc2-label").attr("x", lx2).attr("y", ly2).text(`PC2 ${pct2}%`);
+
+    // Caption
+    d3.select("#var-caption").text(
+      `PC1 explains ${pct1}% of total variance · PC2 explains ${pct2}%`
+    );
+
+    // Math reference
+    updateMathRef(pcaResult);
+
+    // Scree
+    if (window._updateScree2D) window._updateScree2D(varExplained);
+  }
+
+  function regenerate() {
+    const n    = +d3.select("#sl-n").property("value");
+    const rho  = +d3.select("#sl-rho").property("value");
+    const noise = +d3.select("#sl-noise").property("value");
+    points = PCA.generateCorrelated(n, rho, noise);
+    updateCircles();
+    updateOverlay();
+  }
+
+  // Scree plot
+  (function buildScree() {
+    const W2 = 220, H2 = 110, pad = { t:8, r:8, b:28, l:38 };
+    const svg2 = d3.select("#scree-container").append("svg")
+      .attr("width", W2).attr("height", H2);
+    const x = d3.scaleBand().domain(["PC1","PC2"]).range([pad.l, W2-pad.r]).padding(0.35);
+    const y = d3.scaleLinear().domain([0,1]).range([H2-pad.b, pad.t]);
+
+    svg2.append("g").attr("transform",`translate(0,${H2-pad.b})`)
+      .call(d3.axisBottom(x).tickSize(0))
+      .call(g => g.select(".domain").remove())
+      .selectAll("text").attr("fill","#64748b").attr("font-size","10");
+    svg2.append("g").attr("transform",`translate(${pad.l},0)`)
+      .call(d3.axisLeft(y).ticks(3).tickFormat(d3.format(".0%")))
+      .call(g => g.select(".domain").remove())
+      .selectAll("text").attr("fill","#64748b").attr("font-size","10");
+
+    // 80% line
+    svg2.append("line")
+      .attr("x1",pad.l).attr("x2",W2-pad.r)
+      .attr("y1",y(0.8)).attr("y2",y(0.8))
+      .attr("stroke","#f59e0b").attr("stroke-dasharray","3,2").attr("stroke-width",1);
+    svg2.append("text").attr("x",W2-pad.r+2).attr("y",y(0.8)+3)
+      .attr("font-size",9).attr("fill","#f59e0b").text("80%");
+
+    const initData = [{label:"PC1",v:0.7,color:"#3b82f6"},{label:"PC2",v:0.3,color:"#10b981"}];
+    const bars = svg2.selectAll("rect.sb").data(initData, d => d.label)
+      .join("rect").attr("class","sb")
+      .attr("x", d => x(d.label)).attr("width", x.bandwidth())
+      .attr("y", d => y(d.v)).attr("height", d => y(0)-y(d.v))
+      .attr("fill", d => d.color).attr("rx",2);
+
+    window._updateScree2D = function(ve) {
+      const newData = [{label:"PC1",v:ve[0]},{label:"PC2",v:ve[1]}];
+      bars.data(newData, d => d.label)
+        .transition().duration(200)
+        .attr("y", d => y(d.v)).attr("height", d => y(0)-y(d.v));
+    };
+  })();
+
+  // Sliders
+  function bindSlider(id, outId, fmt) {
+    d3.select(`#${id}`).on("input", function() {
+      d3.select(`#${outId}`).text(fmt(+this.value));
+      regenerate();
+    });
+  }
+  bindSlider("sl-n",     "out-n",     v => v);
+  bindSlider("sl-rho",   "out-rho",   v => v.toFixed(2));
+  bindSlider("sl-noise", "out-noise", v => v.toFixed(2));
+
+  // Math ref
+  function updateMathRef(r) {
+    const fmt = v => v >= 0 ? ` ${v.toFixed(3)}` : `${v.toFixed(3)}`;
+    d3.select("#math-cov").html(
+      `Σ = [\n  [${fmt(r.covMatrix[0][0])}, ${fmt(r.covMatrix[0][1])}],\n  [${fmt(r.covMatrix[1][0])}, ${fmt(r.covMatrix[1][1])}\n]`
+    );
+    d3.select("#math-eig").html(
+      `λ₁ = ${r.eigvals[0].toFixed(3)}  (${(r.varExplained[0]*100).toFixed(1)}%)\nλ₂ = ${r.eigvals[1].toFixed(3)}  (${(r.varExplained[1]*100).toFixed(1)}%)\n\nv₁ = [${r.eigvecs[0][0].toFixed(3)}, ${r.eigvecs[0][1].toFixed(3)}]\nv₂ = [${r.eigvecs[1][0].toFixed(3)}, ${r.eigvecs[1][1].toFixed(3)}]`
+    );
+  }
+
+  // Init
+  regenerate();
+  window._getPoints = () => points;
+  window._getPCA2D  = () => pcaResult;
+  window._regenPoints = regenerate;
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 2 — Walkthrough
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const W = 560, H = 420;
+  const M = { top: 20, right: 20, bottom: 40, left: 40 };
+
+  const svg = d3.select("#wt-scatter-wrap").append("svg")
+    .attr("viewBox", `0 0 ${W} ${H}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  const xSc = d3.scaleLinear().domain([-4.5, 4.5]).range([M.left, W - M.right]);
+  const ySc = d3.scaleLinear().domain([-4.5, 4.5]).range([H - M.bottom, M.top]);
+
+  svg.append("g").attr("transform",`translate(0,${H-M.bottom})`)
+    .call(d3.axisBottom(xSc).ticks(7).tickSize(-H+M.top+M.bottom))
+    .call(g => g.select(".domain").attr("stroke","#2a2d3a"))
+    .call(g => g.selectAll(".tick line").attr("stroke","#1e2130").attr("stroke-dasharray","3,3"))
+    .call(g => g.selectAll(".tick text").attr("fill","#475569").attr("font-size","10"));
+  svg.append("g").attr("transform",`translate(${M.left},0)`)
+    .call(d3.axisLeft(ySc).ticks(7).tickSize(-W+M.left+M.right))
+    .call(g => g.select(".domain").attr("stroke","#2a2d3a"))
+    .call(g => g.selectAll(".tick line").attr("stroke","#1e2130").attr("stroke-dasharray","3,3"))
+    .call(g => g.selectAll(".tick text").attr("fill","#475569").attr("font-size","10"));
+
+  const ellipseG = svg.append("g").attr("opacity", 0);
+  const pcAxisG  = svg.append("g").attr("opacity", 0);
+  const projG    = svg.append("g").attr("opacity", 0);
+  const pointsG  = svg.append("g");
+  const annotG   = svg.append("g");
+
+  // Arrow markers for walkthrough svg
+  const defs = svg.append("defs");
+  function makeArrow(id, color) {
+    defs.append("marker").attr("id", id)
+      .attr("markerWidth", 6).attr("markerHeight", 6)
+      .attr("refX", 5).attr("refY", 3).attr("orient", "auto")
+      .append("polygon").attr("points", "0 0, 6 3, 0 6").attr("fill", color);
+  }
+  makeArrow("wt-arrow-blue",  "#3b82f6");
+  makeArrow("wt-arrow-green", "#10b981");
+
+  ellipseG.append("ellipse").attr("class","cov-ellipse");
+  pcAxisG.append("line").attr("class","pc1-line").attr("marker-end","url(#wt-arrow-blue)");
+  pcAxisG.append("line").attr("class","pc2-line").attr("marker-end","url(#wt-arrow-green)");
+
+  const STEPS = [
+    { label: "Raw Data",           text: "Here are your data points — each one is an observation with two measurements (x and y). Notice there's a trend: as x increases, y tends to increase too. That's correlation." },
+    { label: "Center the Data",    text: "PCA always starts by subtracting the mean. Every point shifts so the cloud is centered at the origin (0, 0). This removes the effect of the mean without changing the shape." },
+    { label: "Covariance Ellipse", text: "The dashed ellipse summarizes how x and y vary together. A tilted ellipse means they're correlated. The axes of the ellipse will become our principal components." },
+    { label: "Eigenvectors",       text: "The eigenvectors of the covariance matrix point along the ellipse's axes — the directions of maximum and minimum spread. PC1 (blue) captures the most variance." },
+    { label: "Project onto PC1",   text: "Drop each point perpendicularly onto PC1. These shadows are your lower-dimensional representation. The projection keeps most of the variance — only the spread along PC2 is lost." },
+  ];
+
+  let state = { current: -1, active: false, transitioning: false, offset: [0, 0] };
+  let wtPoints = [], wtPCA = null;
+
+  function initWalkthrough() {
+    // Copy points from section 1
+    wtPoints = (window._getPoints() || []).map(p => ({ ...p }));
+    wtPCA = PCA.compute2D(wtPoints);
+    state.offset = [0, 0];
+
+    // Draw raw points
+    const circles = pointsG.selectAll("circle.wt-pt").data(wtPoints, d => d.id);
+    circles.enter().append("circle").attr("class","wt-pt")
+      .attr("r", 4.5).attr("fill","#7c8ff0").attr("opacity", 0.7)
+      .merge(circles)
+      .attr("cx", d => xSc(d.x)).attr("cy", d => ySc(d.y));
+    circles.exit().remove();
+
+    // Reset layers
+    ellipseG.attr("opacity", 0);
+    pcAxisG.attr("opacity", 0);
+    projG.selectAll("*").remove();
+    annotG.selectAll("*").remove();
+    projG.attr("opacity", 1);
+  }
+
+  function runStep(step) {
+    if (state.transitioning) return;
+    state.transitioning = true;
+
+    const r = wtPCA;
+    const [ox, oy] = state.offset;
+
+    function finishTransition() {
+      state.transitioning = false;
+      updateDots();
+      updateNavButtons();
+    }
+
+    if (step === 0) {
+      ellipseG.interrupt().attr("opacity", 0);
+      pcAxisG.interrupt().attr("opacity", 0);
+      projG.selectAll("*").remove();
+      annotG.selectAll("*").remove();
+      state.offset = [0, 0];
+      let settled = 0;
+      const circles = pointsG.selectAll("circle.wt-pt");
+      const total = circles.size() || 1;
+      circles.transition().duration(500)
+        .attr("cx", d => xSc(d.x)).attr("cy", d => ySc(d.y))
+        .on("end", () => { if (++settled >= total) finishTransition(); });
+    }
+    else if (step === 1) {
+      const [mx, my] = r.mean;
+      state.offset = [-mx, -my];
+      annotG.selectAll("*").remove();
+      const cross = annotG.append("g").attr("opacity", 0);
+      cross.append("line").attr("class","mean-cross")
+        .attr("x1", xSc(mx)-12).attr("y1", ySc(my))
+        .attr("x2", xSc(mx)+12).attr("y2", ySc(my));
+      cross.append("line").attr("class","mean-cross")
+        .attr("x1", xSc(mx)).attr("y1", ySc(my)-12)
+        .attr("x2", xSc(mx)).attr("y2", ySc(my)+12);
+      cross.append("text").attr("x", xSc(mx)+14).attr("y", ySc(my)+4)
+        .attr("fill","#f59e0b").attr("font-size","10").text("mean");
+
+      cross.transition().duration(300).attr("opacity", 1).on("end", () => {
+        setTimeout(() => {
+          annotG.selectAll("*").remove();
+          let settled = 0;
+          const circles = pointsG.selectAll("circle.wt-pt");
+          const total = circles.size() || 1;
+          circles.transition().duration(800).ease(d3.easeCubicInOut)
+            .attr("cx", d => xSc(d.x - mx)).attr("cy", d => ySc(d.y - my))
+            .on("end", () => { if (++settled >= total) finishTransition(); });
+        }, 400);
+      });
+    }
+    else if (step === 2) {
+      const [mx, my] = r.mean;
+      const angle = Math.atan2(r.eigvecs[0][1], r.eigvecs[0][0]) * 180 / Math.PI;
+      const cx = xSc(mx + ox), cy = ySc(my + oy);
+      const rxFull = Math.abs(xSc(Math.sqrt(r.eigvals[0]) * 2) - xSc(0));
+      const ryFull = Math.abs(ySc(0) - ySc(Math.sqrt(r.eigvals[1]) * 2));
+
+      ellipseG.select(".cov-ellipse")
+        .attr("cx", cx).attr("cy", cy).attr("rx", 0).attr("ry", 0)
+        .attr("transform", `rotate(${-angle},${cx},${cy})`);
+      ellipseG.attr("opacity", 1);
+      ellipseG.select(".cov-ellipse")
+        .transition().duration(700).ease(d3.easeCubicOut)
+        .attr("rx", rxFull).attr("ry", ryFull)
+        .on("end", finishTransition);
+    }
+    else if (step === 3) {
+      const [mx, my] = r.mean;
+      const cx = mx + ox, cy = my + oy;
+      function setArrow(cls, vec, len) {
+        const x1 = xSc(cx - vec[0]*len), y1 = ySc(cy - vec[1]*len);
+        const x2 = xSc(cx + vec[0]*len), y2 = ySc(cy + vec[1]*len);
+        const plen = Math.hypot(x2-x1, y2-y1);
+        pcAxisG.select(cls)
+          .attr("x1",x1).attr("y1",y1).attr("x2",x2).attr("y2",y2)
+          .attr("stroke-dasharray", plen).attr("stroke-dashoffset", plen);
+      }
+      setArrow(".pc1-line", r.eigvecs[0], 2.8);
+      setArrow(".pc2-line", r.eigvecs[1], 2.2);
+      pcAxisG.attr("opacity", 1);
+      let arrowsDone = 0;
+      pcAxisG.selectAll("line")
+        .transition().duration(700).ease(d3.easeLinear)
+        .attr("stroke-dashoffset", 0)
+        .on("end", () => { if (++arrowsDone >= 2) finishTransition(); });
+    }
+    else if (step === 4) {
+      const [mx, my] = r.mean;
+      const cx = mx + ox, cy = my + oy;
+      const projData = PCA.projectOntoPC1(
+        wtPoints.map(p => ({ ...p, x: p.x + ox, y: p.y + oy })),
+        r.eigvecs[0], [cx, cy]
+      );
+
+      projG.selectAll("line.proj-line").data(projData).enter()
+        .append("line").attr("class","proj-line")
+        .attr("x1", (d,i) => xSc(wtPoints[i].x + ox))
+        .attr("y1", (d,i) => ySc(wtPoints[i].y + oy))
+        .attr("x2", (d,i) => xSc(wtPoints[i].x + ox))
+        .attr("y2", (d,i) => ySc(wtPoints[i].y + oy))
+        .transition().duration(600).ease(d3.easeCubicOut)
+        .delay((d, i) => i * 6)
+        .attr("x2", d => xSc(d.projPoint[0])).attr("y2", d => ySc(d.projPoint[1]));
+
+      let shadowsDone = 0;
+      const n = projData.length || 1;
+      projG.selectAll("circle.shadow-pt").data(projData).enter()
+        .append("circle").attr("class","shadow-pt")
+        .attr("r", 3).attr("opacity", 0)
+        .attr("cx", d => xSc(d.projPoint[0])).attr("cy", d => ySc(d.projPoint[1]))
+        .transition().duration(300).delay((d,i) => i*6 + 500)
+        .attr("opacity", 0.8)
+        .on("end", () => { if (++shadowsDone >= n) finishTransition(); });
+    }
+
+    updateDots();
+    updateNavButtons();
+    d3.select("#wt-text").text(STEPS[step].text);
+  }
+
+  function goTo(step) {
+    if (step < 0 || step >= STEPS.length) return;
+    if (state.transitioning) return;
+    // Always replay from scratch for reliability
+    initWalkthrough();
+    state.current = -1;
+    function advance() {
+      state.current++;
+      if (state.current > step) { state.transitioning = false; return; }
+      runStep(state.current);
+      if (state.current < step) {
+        setTimeout(advance, state.current === 0 ? 50 : 900);
+      }
+    }
+    advance();
+    state.current = step;
+  }
+
+  function updateDots() {
+    d3.selectAll(".step-dot").each(function(d, i) {
+      d3.select(this)
+        .classed("active", i === state.current)
+        .classed("done",   i < state.current);
+    });
+  }
+
+  function updateNavButtons() {
+    d3.select("#btn-prev").property("disabled", state.current <= 0 || state.transitioning);
+    d3.select("#btn-next").property("disabled", state.current >= STEPS.length - 1 || state.transitioning);
+  }
+
+  // Build step dots
+  const dotsContainer = d3.select("#step-dots");
+  STEPS.forEach((s, i) => {
+    dotsContainer.append("div").attr("class","step-dot").attr("title", s.label);
+  });
+
+  d3.select("#btn-wt-start").on("click", function() {
+    initWalkthrough();
+    state.current = 0;
+    state.active = true;
+    runStep(0);
+    d3.select("#btn-wt-start").style("display","none");
+    d3.select("#wt-nav").style("display","flex");
+    d3.select("#wt-text").style("display","block");
+    updateDots();
+    updateNavButtons();
+  });
+
+  d3.select("#btn-next").on("click", function() {
+    if (state.transitioning) return;
+    state.current++;
+    runStep(state.current);
+  });
+
+  d3.select("#btn-prev").on("click", function() {
+    if (state.transitioning || state.current <= 0) return;
+    goTo(state.current - 1);
+  });
+
+  d3.select("#btn-exit-wt").on("click", function() {
+    state.active = false; state.current = -1; state.transitioning = false;
+    d3.select("#btn-wt-start").style("display","inline-flex");
+    d3.select("#wt-nav").style("display","none");
+    d3.select("#wt-text").style("display","none");
+    pointsG.selectAll("*").remove();
+    ellipseG.attr("opacity",0); pcAxisG.attr("opacity",0);
+    projG.selectAll("*").remove(); annotG.selectAll("*").remove();
+  });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SECTION 3 — Three.js 3D scene
+// ═══════════════════════════════════════════════════════════════
+(function () {
+  const container = document.getElementById("scene-3d");
+  const canvas    = document.getElementById("three-canvas");
+
+  const W = container.clientWidth, H = Math.min(480, Math.max(320, W * 0.55));
+  canvas.style.height = H + "px";
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: window.devicePixelRatio < 2, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(W, H);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0c13);
+
+  const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+  camera.position.set(5, 4, 7);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.6;
+  controls.addEventListener("start", () => { controls.autoRotate = false; });
+
+  // Generate 3D data
+  const pts3D = PCA.generate3D(150, 0.75, 0.55, 0.3);
+  const pca3D = PCA.compute3D(pts3D);
+
+  // Point cloud
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(
+    new Float32Array(pts3D.flatMap(p => [p.x, p.y, p.z])), 3));
+  const mat = new THREE.PointsMaterial({ size: 0.12, color: 0x7c8ff0, transparent: true, opacity: 0.85, sizeAttenuation: true });
+  scene.add(new THREE.Points(geo, mat));
+
+  // Ambient light (for mesh materials if added later)
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+  // PCA plane
+  const planeGeo = new THREE.PlaneGeometry(8, 8);
+  const planeMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0, side: THREE.DoubleSide });
+  const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+
+  const normalVec = new THREE.Vector3(...pca3D.eigvecs[2]);
+  const up = new THREE.Vector3(0, 0, 1);
+  if (Math.abs(normalVec.dot(up)) < 0.999) {
+    planeMesh.quaternion.setFromUnitVectors(up, normalVec);
+  }
+  const meanVec3 = new THREE.Vector3(...pca3D.mean);
+  planeMesh.position.copy(meanVec3);
+  scene.add(planeMesh);
+
+  // PC arrows
+  const pc1Arrow = new THREE.ArrowHelper(
+    new THREE.Vector3(...pca3D.eigvecs[0]), meanVec3, 3.2, 0x3b82f6, 0.35, 0.15);
+  const pc2Arrow = new THREE.ArrowHelper(
+    new THREE.Vector3(...pca3D.eigvecs[1]), meanVec3, 2.5, 0x10b981, 0.3, 0.13);
+  pc1Arrow.line.material.transparent = true; pc1Arrow.line.material.opacity = 0;
+  pc1Arrow.cone.material.transparent = true; pc1Arrow.cone.material.opacity = 0;
+  pc2Arrow.line.material.transparent = true; pc2Arrow.line.material.opacity = 0;
+  pc2Arrow.cone.material.transparent = true; pc2Arrow.cone.material.opacity = 0;
+  scene.add(pc1Arrow); scene.add(pc2Arrow);
+
+  let planeRevealed = false;
+  let rafReveal = null, rafFlatten = null;
+
+  d3.select("#btn-reveal-plane").on("click", function() {
+    if (planeRevealed) return;
+    planeRevealed = true;
+    d3.select(this).property("disabled", true);
+    const start = performance.now();
+    const dur = 1300;
+    function tick(now) {
+      const t = Math.min((now - start) / dur, 1);
+      const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+      planeMat.opacity = e * 0.3;
+      pc1Arrow.line.material.opacity = e;
+      pc1Arrow.cone.material.opacity = e;
+      pc2Arrow.line.material.opacity = e;
+      pc2Arrow.cone.material.opacity = e;
+      if (t < 1) rafReveal = requestAnimationFrame(tick);
+      else d3.select("#btn-flatten").property("disabled", false);
+    }
+    rafReveal = requestAnimationFrame(tick);
+  });
+
+  d3.select("#btn-flatten").on("click", function() {
+    d3.select(this).property("disabled", true);
+    const startPos = camera.position.clone();
+    // Target: look straight down PC3 (smallest eigenvector = normal to plane)
+    const targetPos = meanVec3.clone().add(
+      new THREE.Vector3(...pca3D.eigvecs[2]).multiplyScalar(9)
+    );
+    const start = performance.now();
+    const dur = 1200;
+    controls.autoRotate = false;
+    function tick(now) {
+      const t2 = Math.min((now - start) / dur, 1);
+      const e = t2 < 0.5 ? 2*t2*t2 : -1+(4-2*t2)*t2;
+      camera.position.lerpVectors(startPos, targetPos, e);
+      camera.lookAt(meanVec3);
+      controls.target.copy(meanVec3);
+      if (t2 < 1) rafFlatten = requestAnimationFrame(tick);
+      if (window._updateScree3D) window._updateScree3D(t2);
+    }
+    rafFlatten = requestAnimationFrame(tick);
+  });
+
+  // 3D scree plot
+  (function build3DScree() {
+    const W2 = 300, H2 = 110, pad = { t:8, r:8, b:28, l:40 };
+    const svg = d3.select("#scree-3d").append("svg").attr("width", W2).attr("height", H2);
+    const x = d3.scaleBand().domain(["PC1","PC2","PC3"]).range([pad.l, W2-pad.r]).padding(0.3);
+    const y = d3.scaleLinear().domain([0,1]).range([H2-pad.b, pad.t]);
+    const colors = ["#3b82f6","#10b981","#6b7280"];
+
+    svg.append("g").attr("transform",`translate(0,${H2-pad.b})`)
+      .call(d3.axisBottom(x).tickSize(0))
+      .call(g => g.select(".domain").remove())
+      .selectAll("text").attr("fill","#64748b").attr("font-size","10");
+    svg.append("g").attr("transform",`translate(${pad.l},0)`)
+      .call(d3.axisLeft(y).ticks(3).tickFormat(d3.format(".0%")))
+      .call(g => g.select(".domain").remove())
+      .selectAll("text").attr("fill","#64748b").attr("font-size","10");
+
+    svg.append("line").attr("x1",pad.l).attr("x2",W2-pad.r)
+      .attr("y1",y(0.8)).attr("y2",y(0.8))
+      .attr("stroke","#f59e0b").attr("stroke-dasharray","3,2").attr("stroke-width",1);
+
+    const ve = pca3D.varExplained;
+    const initData = ["PC1","PC2","PC3"].map((l,i) => ({ label:l, v:ve[i], color:colors[i] }));
+    const bars = svg.selectAll("rect.sb3").data(initData, d => d.label)
+      .join("rect").attr("class","sb3")
+      .attr("x", d => x(d.label)).attr("width", x.bandwidth())
+      .attr("y", d => y(d.v)).attr("height", d => y(0)-y(d.v))
+      .attr("fill", d => d.color).attr("rx",2);
+
+    window._updateScree3D = function(t) {
+      const newVe = [ve[0], ve[1], ve[2] * (1 - t)];
+      const total = newVe.reduce((a,b)=>a+b, 0) || 1;
+      bars.data(["PC1","PC2","PC3"].map((l,i) => ({ label:l, v: newVe[i]/total })), d => d.label)
+        .transition().duration(50)
+        .attr("y", d => y(d.v)).attr("height", d => y(0)-y(d.v));
+    };
+  })();
+
+  // Render loop
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Resize
+  window.addEventListener("resize", () => {
+    const w = container.clientWidth;
+    const h = Math.min(480, Math.max(320, w * 0.55));
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    canvas.style.height = h + "px";
+  });
+})();
+</script>
+</body>
+</html>
