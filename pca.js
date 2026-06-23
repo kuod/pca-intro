@@ -163,5 +163,98 @@ window.PCA = (function () {
     });
   }
 
-  return { generateCorrelated, compute2D, generate3D, compute3D, projectOntoPC1 };
+  // ── N-dimensional PCA helpers ──────────────────────────────────────
+
+  function generateScree(n) {
+    // 5D data built from 2 dominant latent factors + noise
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = randn(), b = randn();
+      pts.push({
+        id: i,
+        x: [
+          2.0 * a + 0.15 * randn(),
+          1.4 * a + 0.9 * b + 0.15 * randn(),
+          0.6 * a + 1.3 * b + 0.15 * randn(),
+                   0.5 * b + 0.40 * randn(),
+          0.2 * a + 0.2 * b + 0.50 * randn(),
+        ]
+      });
+    }
+    return pts;
+  }
+
+  function computeND(points) {
+    const n = points.length;
+    const d = points[0].x.length;
+    const mean = new Array(d).fill(0);
+    for (const p of points) for (let i = 0; i < d; i++) mean[i] += p.x[i];
+    for (let i = 0; i < d; i++) mean[i] /= n;
+
+    let C = Array.from({ length: d }, () => new Array(d).fill(0));
+    for (const p of points) {
+      const dx = p.x.map((v, i) => v - mean[i]);
+      for (let i = 0; i < d; i++)
+        for (let j = 0; j < d; j++)
+          C[i][j] += dx[i] * dx[j];
+    }
+    for (let i = 0; i < d; i++)
+      for (let j = 0; j < d; j++)
+        C[i][j] /= (n - 1);
+
+    // Jacobi eigenvalue iteration (same algorithm as compute3D, generalized)
+    let V = Array.from({ length: d }, (_, i) => { const r = new Array(d).fill(0); r[i] = 1; return r; });
+    for (let iter = 0; iter < 200; iter++) {
+      let maxVal = 0, p = 0, q = 1;
+      for (let i = 0; i < d; i++)
+        for (let j = i + 1; j < d; j++)
+          if (Math.abs(C[i][j]) > maxVal) { maxVal = Math.abs(C[i][j]); p = i; q = j; }
+      if (maxVal < 1e-12) break;
+      const theta = (C[q][q] - C[p][p]) / (2 * C[p][q]);
+      const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+      const cs = 1 / Math.sqrt(t * t + 1), sn = t * cs;
+      const newC = C.map(r => r.slice());
+      for (let i = 0; i < d; i++) {
+        if (i !== p && i !== q) {
+          newC[i][p] = newC[p][i] = cs * C[i][p] - sn * C[i][q];
+          newC[i][q] = newC[q][i] = sn * C[i][p] + cs * C[i][q];
+        }
+      }
+      newC[p][p] = cs*cs*C[p][p] - 2*sn*cs*C[p][q] + sn*sn*C[q][q];
+      newC[q][q] = sn*sn*C[p][p] + 2*sn*cs*C[p][q] + cs*cs*C[q][q];
+      newC[p][q] = newC[q][p] = 0;
+      C = newC;
+      const newV = V.map(r => r.slice());
+      for (let i = 0; i < d; i++) {
+        newV[i][p] = cs * V[i][p] - sn * V[i][q];
+        newV[i][q] = sn * V[i][p] + cs * V[i][q];
+      }
+      V = newV;
+    }
+    const eigs = Array.from({ length: d }, (_, i) => ({ val: Math.max(C[i][i], 0), vec: V.map(r => r[i]) }));
+    eigs.sort((a, b) => b.val - a.val);
+    const total = eigs.reduce((s, e) => s + e.val, 0) || 1;
+    return {
+      mean,
+      eigvals: eigs.map(e => e.val),
+      eigvecs: eigs.map(e => e.vec),
+      varExplained: eigs.map(e => e.val / total),
+    };
+  }
+
+  function reconstructND(points, pca, k) {
+    const { mean, eigvecs } = pca;
+    const d = mean.length;
+    return points.map(p => {
+      const dx = p.x.map((v, i) => v - mean[i]);
+      const scores = eigvecs.slice(0, k).map(v => dx.reduce((s, c, i) => s + c * v[i], 0));
+      const recon = new Array(d).fill(0);
+      for (let j = 0; j < k; j++)
+        for (let i = 0; i < d; i++)
+          recon[i] += scores[j] * eigvecs[j][i];
+      return recon.map((v, i) => v + mean[i]);
+    });
+  }
+
+  return { generateCorrelated, compute2D, generate3D, compute3D, projectOntoPC1, generateScree, computeND, reconstructND };
 })();
