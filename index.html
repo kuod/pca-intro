@@ -497,11 +497,13 @@ print("PC directions (one per row):")
 print(pca.components_.round(3))
 
 # explained_variance_ratio_ tells you the fraction of total variance
-# captured by each PC.  They always sum to 1.0.
+# captured by each PC.  They sum to 1.0 when all components are kept
+# (true here: n_components=2 on 2D data). With fewer components than
+# features they sum to less than 1.0 — the remainder is discarded variance.
 print("\nVariance explained by each PC:")
 for i, v in enumerate(pca.explained_variance_ratio_):
     print(f"  PC{i+1}: {v:.1%}")
-# Example output:  PC1: 87.2%   PC2: 12.8%
+# Example output:  PC1: 92.4%   PC2: 7.6%
 
 # ── 4. Project the data ────────────────────────────────────────────
 # transform() rotates X into the PCA coordinate system.
@@ -527,7 +529,7 @@ plt.show()
   <!-- MATLAB panel -->
   <div class="tab-panel" id="tab-matlab">
     <div class="install-note">
-      Requires the <strong>Statistics and Machine Learning Toolbox</strong> (included in most university MATLAB licenses).
+      Requires the <strong>Statistics and Machine Learning Toolbox</strong> and <strong>R2018b or later</strong> (for <code>xline</code>/<code>yline</code>).
     </div>
     <div class="copy-wrap">
       <button class="copy-btn" data-target="code-matlab">Copy</button>
@@ -1260,6 +1262,9 @@ document.querySelectorAll('.copy-btn').forEach(btn => {
     const code = document.getElementById(btn.dataset.target).textContent;
     navigator.clipboard.writeText(code).then(() => {
       btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+    }).catch(() => {
+      btn.textContent = 'Failed';
       setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
     });
   });
