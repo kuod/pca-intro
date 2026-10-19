@@ -44,18 +44,20 @@ window.PCA = (function () {
     const disc = Math.sqrt(Math.max((trace / 2) * (trace / 2) - det, 0));
     const eigval1 = trace / 2 + disc;
     let eigval2 = trace / 2 - disc;
-    if (eigval2 < 1e-10) eigval2 = 1e-10;
+    if (eigval2 < 0) eigval2 = 0;
+    if (eigval2 > eigval1) eigval2 = eigval1;
 
     let ex, ey;
-    if (Math.abs(cxy) < 1e-10) {
-      ex = 1; ey = 0;
+    if (Math.abs(cxy) <= 1e-12 * trace) {
+      // Already axis-aligned: PC1 is the axis with the larger variance.
+      if (cxx >= cyy) { ex = 1; ey = 0; } else { ex = 0; ey = 1; }
     } else {
       const vx = eigval1 - cyy, vy = cxy;
       const len = Math.sqrt(vx * vx + vy * vy);
       ex = vx / len; ey = vy / len;
     }
     const total = eigval1 + eigval2;
-    const safeTotal = total > 1e-12 ? total : 1;
+    const safeTotal = total > 0 ? total : 1;
 
     return {
       mean: [mx, my],
@@ -88,6 +90,10 @@ window.PCA = (function () {
 
   function compute3D(points) {
     const n = points.length;
+    if (n < 2) return {
+      mean: n === 1 ? [points[0].x, points[0].y, points[0].z] : [0, 0, 0],
+      eigvals: [0, 0, 0], eigvecs: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], varExplained: [0, 0, 0],
+    };
     let mx = 0, my = 0, mz = 0;
     for (const p of points) { mx += p.x; my += p.y; mz += p.z; }
     mx /= n; my /= n; mz /= n;
@@ -105,12 +111,13 @@ window.PCA = (function () {
 
     // Jacobi eigenvalue iteration
     let V = [[1,0,0],[0,1,0],[0,0,1]];
+    const tol3 = 1e-12 * (c[0][0] + c[1][1] + c[2][2]);   // relative to scale
     for (let iter = 0; iter < 100; iter++) {
       let maxVal = 0, p = 0, q = 1;
       for (let i = 0; i < 3; i++)
         for (let j = i + 1; j < 3; j++)
           if (Math.abs(c[i][j]) > maxVal) { maxVal = Math.abs(c[i][j]); p = i; q = j; }
-      if (maxVal < 1e-12) break;
+      if (maxVal <= tol3) break;
 
       const theta = (c[q][q] - c[p][p]) / (2 * c[p][q]);
       const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
@@ -142,7 +149,7 @@ window.PCA = (function () {
     const eigs = [0, 1, 2].map(i => ({ val: Math.max(c[i][i], 0), vec: [V[0][i], V[1][i], V[2][i]] }));
     eigs.sort((a, b) => b.val - a.val);
     const total = eigs.reduce((s, e) => s + e.val, 0);
-    const safeTotal = total > 1e-12 ? total : 1;
+    const safeTotal = total > 0 ? total : 1;
 
     return {
       mean: [mx, my, mz],
@@ -186,7 +193,16 @@ window.PCA = (function () {
 
   function computeND(points) {
     const n = points.length;
+    if (n === 0) return { mean: [], eigvals: [], eigvecs: [], varExplained: [] };
     const d = points[0].x.length;
+    if (n < 2) {
+      return {
+        mean: points[0].x.slice(),
+        eigvals: new Array(d).fill(0),
+        eigvecs: Array.from({ length: d }, (_, i) => { const r = new Array(d).fill(0); r[i] = 1; return r; }),
+        varExplained: new Array(d).fill(0),
+      };
+    }
     const mean = new Array(d).fill(0);
     for (const p of points) for (let i = 0; i < d; i++) mean[i] += p.x[i];
     for (let i = 0; i < d; i++) mean[i] /= n;
@@ -204,12 +220,15 @@ window.PCA = (function () {
 
     // Jacobi eigenvalue iteration (same algorithm as compute3D, generalized)
     let V = Array.from({ length: d }, (_, i) => { const r = new Array(d).fill(0); r[i] = 1; return r; });
+    let trace = 0;
+    for (let i = 0; i < d; i++) trace += C[i][i];
+    const tol = 1e-12 * trace;   // relative to scale
     for (let iter = 0; iter < 200; iter++) {
       let maxVal = 0, p = 0, q = 1;
       for (let i = 0; i < d; i++)
         for (let j = i + 1; j < d; j++)
           if (Math.abs(C[i][j]) > maxVal) { maxVal = Math.abs(C[i][j]); p = i; q = j; }
-      if (maxVal < 1e-12) break;
+      if (maxVal <= tol) break;
       const theta = (C[q][q] - C[p][p]) / (2 * C[p][q]);
       const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
       const cs = 1 / Math.sqrt(t * t + 1), sn = t * cs;
