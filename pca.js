@@ -44,18 +44,20 @@ window.PCA = (function () {
     const disc = Math.sqrt(Math.max((trace / 2) * (trace / 2) - det, 0));
     const eigval1 = trace / 2 + disc;
     let eigval2 = trace / 2 - disc;
-    if (eigval2 < 1e-10) eigval2 = 1e-10;
+    if (eigval2 < 0) eigval2 = 0;
+    if (eigval2 > eigval1) eigval2 = eigval1;
 
     let ex, ey;
-    if (Math.abs(cxy) < 1e-10) {
-      ex = 1; ey = 0;
+    if (Math.abs(cxy) <= 1e-12 * trace) {
+      // Already axis-aligned: PC1 is the axis with the larger variance.
+      if (cxx >= cyy) { ex = 1; ey = 0; } else { ex = 0; ey = 1; }
     } else {
       const vx = eigval1 - cyy, vy = cxy;
       const len = Math.sqrt(vx * vx + vy * vy);
       ex = vx / len; ey = vy / len;
     }
     const total = eigval1 + eigval2;
-    const safeTotal = total > 1e-12 ? total : 1;
+    const safeTotal = total > 0 ? total : 1;
 
     return {
       mean: [mx, my],
@@ -142,7 +144,7 @@ window.PCA = (function () {
     const eigs = [0, 1, 2].map(i => ({ val: Math.max(c[i][i], 0), vec: [V[0][i], V[1][i], V[2][i]] }));
     eigs.sort((a, b) => b.val - a.val);
     const total = eigs.reduce((s, e) => s + e.val, 0);
-    const safeTotal = total > 1e-12 ? total : 1;
+    const safeTotal = total > 0 ? total : 1;
 
     return {
       mean: [mx, my, mz],
