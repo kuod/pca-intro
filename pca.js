@@ -90,6 +90,10 @@ window.PCA = (function () {
 
   function compute3D(points) {
     const n = points.length;
+    if (n < 2) return {
+      mean: n === 1 ? [points[0].x, points[0].y, points[0].z] : [0, 0, 0],
+      eigvals: [0, 0, 0], eigvecs: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], varExplained: [0, 0, 0],
+    };
     let mx = 0, my = 0, mz = 0;
     for (const p of points) { mx += p.x; my += p.y; mz += p.z; }
     mx /= n; my /= n; mz /= n;
@@ -188,7 +192,16 @@ window.PCA = (function () {
 
   function computeND(points) {
     const n = points.length;
+    if (n === 0) return { mean: [], eigvals: [], eigvecs: [], varExplained: [] };
     const d = points[0].x.length;
+    if (n < 2) {
+      return {
+        mean: points[0].x.slice(),
+        eigvals: new Array(d).fill(0),
+        eigvecs: Array.from({ length: d }, (_, i) => { const r = new Array(d).fill(0); r[i] = 1; return r; }),
+        varExplained: new Array(d).fill(0),
+      };
+    }
     const mean = new Array(d).fill(0);
     for (const p of points) for (let i = 0; i < d; i++) mean[i] += p.x[i];
     for (let i = 0; i < d; i++) mean[i] /= n;
