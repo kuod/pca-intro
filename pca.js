@@ -111,12 +111,13 @@ window.PCA = (function () {
 
     // Jacobi eigenvalue iteration
     let V = [[1,0,0],[0,1,0],[0,0,1]];
+    const tol3 = 1e-12 * (c[0][0] + c[1][1] + c[2][2]);   // relative to scale
     for (let iter = 0; iter < 100; iter++) {
       let maxVal = 0, p = 0, q = 1;
       for (let i = 0; i < 3; i++)
         for (let j = i + 1; j < 3; j++)
           if (Math.abs(c[i][j]) > maxVal) { maxVal = Math.abs(c[i][j]); p = i; q = j; }
-      if (maxVal < 1e-12) break;
+      if (maxVal <= tol3) break;
 
       const theta = (c[q][q] - c[p][p]) / (2 * c[p][q]);
       const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
@@ -219,12 +220,15 @@ window.PCA = (function () {
 
     // Jacobi eigenvalue iteration (same algorithm as compute3D, generalized)
     let V = Array.from({ length: d }, (_, i) => { const r = new Array(d).fill(0); r[i] = 1; return r; });
+    let trace = 0;
+    for (let i = 0; i < d; i++) trace += C[i][i];
+    const tol = 1e-12 * trace;   // relative to scale
     for (let iter = 0; iter < 200; iter++) {
       let maxVal = 0, p = 0, q = 1;
       for (let i = 0; i < d; i++)
         for (let j = i + 1; j < d; j++)
           if (Math.abs(C[i][j]) > maxVal) { maxVal = Math.abs(C[i][j]); p = i; q = j; }
-      if (maxVal < 1e-12) break;
+      if (maxVal <= tol) break;
       const theta = (C[q][q] - C[p][p]) / (2 * C[p][q]);
       const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
       const cs = 1 / Math.sqrt(t * t + 1), sn = t * cs;
