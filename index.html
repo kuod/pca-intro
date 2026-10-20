@@ -524,7 +524,7 @@ print(pca.components_.round(3))
 print("\nVariance explained by each PC:")
 for i, v in enumerate(pca.explained_variance_ratio_):
     print(f"  PC{i+1}: {v:.1%}")
-# Example output:  PC1: 92.4%   PC2: 7.6%
+# Example output (seed 42; the population value is ≈91.2%):  PC1: 92.4%   PC2: 7.6%
 
 # ── 4. Project the data ────────────────────────────────────────────
 # transform() rotates X into the PCA coordinate system.
@@ -579,7 +579,7 @@ fprintf('\nVariance explained:\n')
 for k = 1:length(explained)
     fprintf('  PC%d: %.1f%%\n', k, explained(k))
 end
-% Example output:  PC1: 87.2%   PC2: 12.8%
+% Example output: PC1 ≈91%   PC2 ≈9%  (varies slightly with the random draw)
 
 % ── 4. Understand the output ───────────────────────────────────────
 % score(:, 1)  → each sample's coordinate along PC1 (main axis)
