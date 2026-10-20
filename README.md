@@ -12,6 +12,17 @@ All libraries come from the jsDelivr CDN, version-pinned, with Subresource Integ
 curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
 ```
 
+## Sections
+
+1. The 2D Interactive Lab
+2. Walk Me Through It
+3. From 3D to 2D
+4. The Math Behind It
+5. PCA in Python & MATLAB
+6. How Many Components Do I Need?
+
+The site is two files: `index.html` (CSS, markup, page scripts) and `pca.js` (pure math, exposed as `window.PCA`). The `.nojekyll` file disables Jekyll processing on GitHub Pages.
+
 ## Development
 
 No build step. Serve with `python3 -m http.server`. Run the math tests with `node tests/pca.test.js`.

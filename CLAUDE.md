@@ -26,11 +26,12 @@ All code lives in two files:
 
 - **`pca.js`** — exports a single global `window.PCA` object with pure math functions: `generateCorrelated`, `compute2D`, `generate3D`, `compute3D`, `projectOntoPC1`, `generateScree`, `computeND`, `reconstructND`. No DOM access. Uses Box-Muller for normal samples and Jacobi iteration for 3D eigendecomposition (2D uses the closed-form quadratic formula).
 
-- **`index.html`** — all CSS (CSS custom properties for the dark theme), HTML structure, and self-contained JS blocks at the bottom (Sections 4 and 5 are static HTML/code listings):
+- **`index.html`** — all CSS (CSS custom properties for the dark theme), HTML structure, and self-contained JS blocks at the bottom (Section 5 is a static code listing; Section 4 is filled live from Section 1):
   - **Section 1** (2D Interactive Lab): D3 scatter plot with draggable points, sliders for N/ρ/noise, covariance ellipse, PC arrows, scree plot, and live math reference. Exposes `window._getPoints()`, `window._getPCA2D()`, and `window._regenPoints()` for the walkthrough to consume.
   - **Section 2** (Walkthrough): Stepwise animation of the PCA algorithm (raw data → center → ellipse → eigenvectors → projection). Uses the same data points from Section 1 via the globals above.
   - **Section 3** (3D scene): Three.js point cloud with PCA plane and PC arrows. OrbitControls for rotate/zoom, animated camera flatten to view the PCA plane face-on.
-
+  - **Section 4** (The Math Behind It): live math reference; fills `#math-cov` and `#math-eig` from the 2D lab's current PCA.
+  - **Section 5** (PCA in Python & MATLAB): static Python/MATLAB code tabs, highlighted by highlight.js.
   - **Section 6** (Elbow method): scree plot over 5D data from `generateScree`/`computeND`, with live reconstruction via `reconstructND`.
 
 Libraries are loaded from jsDelivr (no local copies). The stylesheet is in `<head>`; the scripts are at the bottom of `index.html`, before `pca.js`:
