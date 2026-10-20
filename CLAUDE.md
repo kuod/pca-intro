@@ -33,10 +33,24 @@ All code lives in two files:
 
   - **Section 6** (Elbow method): scree plot over 5D data from `generateScree`/`computeND`, with live reconstruction via `reconstructND`.
 
-Libraries are loaded from CDN (no local copies):
-- D3.js v7 (`d3@7.9.0`)
-- Three.js r145 (`three@0.145.0`) + OrbitControls
-- highlight.js 11.9.0 (code highlighting in Section 5)
+Libraries are loaded from jsDelivr (no local copies). The stylesheet is in `<head>`; the scripts are at the bottom of `index.html`, before `pca.js`:
+- highlight.js 11.9.0 theme: `highlight.js@11.9.0/styles/github-dark.min.css`
+- highlight.js 11.9.0 core: `@highlightjs/cdn-assets@11.9.0/highlight.min.js`
+- highlight.js MATLAB grammar: `@highlightjs/cdn-assets@11.9.0/languages/matlab.min.js` (MATLAB is not in the default bundle, so it is loaded separately)
+- D3.js v7: `d3@7.9.0/dist/d3.min.js`
+- Three.js r145: `three@0.145.0/build/three.min.js` + `three@0.145.0/examples/js/controls/OrbitControls.js`
+
+highlight.js highlights the Python and MATLAB code blocks in Section 5 via `hljs.highlightAll()` (wrapped in try/catch so a CDN failure cannot break the tabs).
+
+### CDN integrity (SRI)
+
+Every CDN `<script>` and `<link rel="stylesheet">` tag is version-pinned (exact version in the URL, never `@latest`/`@7`) and carries `integrity="sha384-..."` plus `crossorigin="anonymous"`. When bumping a version, update the URL and recompute the hash for that exact URL:
+
+```sh
+curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
+```
+
+Prefix the output with `sha384-` in the `integrity` attribute. Keep core and language scripts on the same highlight.js version.
 
 ## Key design constraints
 
